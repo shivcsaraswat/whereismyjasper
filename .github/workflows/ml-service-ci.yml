@@ -6,7 +6,7 @@ on:
     pull_request:
       paths: 
         - 'ml-service/**'
-
+    workflow_dispatch:
 jobs:
   ML_Service_CI: 
   
