@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ml_service"
+version = "0.1.0"
+description = "ML service for Jasper dog classification"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "Pillow>=9.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "python-multipart>=0.0.6",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "httpx>=0.24.0",  # Required for FastAPI TestClient
+]
+
+[project.scripts]
+jasper-train = "ml_service.training.train:main"
+jasper-serve = "ml_service.api.main:serve"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ml_service*"]
