@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder - Install dependencies
 # -----------------------------------------------------------------------------
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir .
 # -----------------------------------------------------------------------------
 # Stage 2: Production - Minimal runtime image
 # -----------------------------------------------------------------------------
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 WORKDIR /app
 
@@ -52,11 +52,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application code
 COPY ml_service/ ./ml_service/
 
-# Copy trained model if it exists (optional - can be mounted or downloaded)
-COPY models/ ./models/ 2>/dev/null || true
-
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
+
+# Create models directory (model can be mounted or downloaded at runtime)
+RUN mkdir -p ./models && chown appuser:appuser ./models
+
 USER appuser
 
 # Cloud Run uses PORT environment variable
