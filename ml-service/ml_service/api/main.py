@@ -1,4 +1,4 @@
-"""
+﻿"""
 FastAPI application for Jasper image classification.
 
 Entry point: jasper-serve
