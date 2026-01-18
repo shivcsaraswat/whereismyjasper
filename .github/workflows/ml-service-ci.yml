@@ -21,7 +21,9 @@ jobs:
       - name: Install Uv
         run: pip install uv
       - name: Install dependancies using uv
-        run: uv pip install --system -r ml-service/requirements.txt 
+        working-directory: ml-service
+        run: uv pip install --system -r requirements.txt 
       - name: Run Pytest
-        run: pytest ml-service/tests
+        working-directory: ml-service
+        run: pytest tests
        
