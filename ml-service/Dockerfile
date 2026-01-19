@@ -37,6 +37,10 @@ COPY ml_service/ ./ml_service/
 # Install the package (without dev dependencies)
 RUN pip install --no-cache-dir .
 
+# Pre-download ResNet50 weights during build (not at runtime)
+# This prevents Cloud Run timeout during container startup
+RUN python -c "from torchvision import models; models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)"
+
 
 # -----------------------------------------------------------------------------
 # Stage 2: Production - Minimal runtime image
@@ -54,6 +58,10 @@ COPY ml_service/ ./ml_service/
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
+
+# Copy pre-downloaded PyTorch model weights and set ownership
+COPY --from=builder /root/.cache/torch /home/appuser/.cache/torch
+RUN chown -R appuser:appuser /home/appuser/.cache
 
 # Create models directory (model can be mounted or downloaded at runtime)
 RUN mkdir -p ./models && chown appuser:appuser ./models
