@@ -12,6 +12,7 @@ Endpoints:
 import io
 from pathlib import Path
 from typing import Optional
+import threading
 
 import torch
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -30,6 +31,7 @@ from ml_service.models.classifier import create_model, load_model, get_device
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
+    model_loading: bool
     device: str
 
 
@@ -67,12 +69,14 @@ app.add_middleware(
 
 
 # ============================================================================
-# Global State
+# Global State (Lazy Loading)
 # ============================================================================
 
-# Model and device are loaded once at startup
+# Model loaded lazily on first request
 model: Optional[torch.nn.Module] = None
 device: Optional[torch.device] = None
+model_loading: bool = False
+model_lock = threading.Lock()
 CLASS_NAMES = ["not_jasper", "jasper"]
 
 # Image preprocessing - must match training transforms
@@ -88,30 +92,48 @@ inference_transform = transforms.Compose([
 
 
 # ============================================================================
-# Startup Event
+# Lazy Model Loading
 # ============================================================================
 
-@app.on_event("startup")
-async def load_model_on_startup():
-    """Load the model when the server starts."""
-    global model, device
+def get_model() -> torch.nn.Module:
+    """
+    Lazily load the model on first request.
+    Thread-safe to handle concurrent requests during loading.
+    """
+    global model, device, model_loading
 
-    device = get_device()
-    model_path = Path(__file__).parent.parent.parent / "models" / "jasper_classifier.pth"
+    # Fast path: model already loaded
+    if model is not None:
+        return model
 
-    if model_path.exists():
-        print(f"Loading trained model from {model_path}")
-        model, metadata = load_model(model_path)
-        model = model.to(device)
-        model.eval()
-        print(f"Model loaded. Metadata: {metadata}")
-    else:
-        print(f"No trained model found at {model_path}")
-        print("Using placeholder model (random predictions)")
-        # Create a fresh model for placeholder predictions
-        model = create_model(num_classes=2, freeze_backbone=True)
-        model = model.to(device)
-        model.eval()
+    with model_lock:
+        # Double-check after acquiring lock
+        if model is not None:
+            return model
+
+        model_loading = True
+        print("Lazy loading model...")
+
+        device = get_device()
+        model_path = Path(__file__).parent.parent.parent / "models" / "jasper_classifier.pth"
+
+        if model_path.exists():
+            print(f"Loading trained model from {model_path}")
+            loaded_model, metadata = load_model(model_path)
+            loaded_model = loaded_model.to(device)
+            loaded_model.eval()
+            print(f"Model loaded. Metadata: {metadata}")
+        else:
+            print(f"No trained model found at {model_path}")
+            print("Using placeholder model (random predictions)")
+            loaded_model = create_model(num_classes=2, freeze_backbone=True)
+            loaded_model = loaded_model.to(device)
+            loaded_model.eval()
+
+        model = loaded_model
+        model_loading = False
+        print("Model ready for inference")
+        return model
 
 
 # ============================================================================
@@ -135,12 +157,13 @@ async def health_check():
     Health check endpoint.
 
     Cloud Run uses this to verify the service is ready to receive traffic.
-    Returns 200 if healthy, which tells Cloud Run the container is ready.
+    Returns 200 immediately - model loads lazily on first predict request.
     """
     return HealthResponse(
         status="healthy",
         model_loaded=model is not None,
-        device=str(device) if device else "not initialized",
+        model_loading=model_loading,
+        device=str(device) if device else "cpu (pending)",
     )
 
 
@@ -154,6 +177,10 @@ async def predict(file: UploadFile = File(...)):
 
     Returns:
         Prediction with confidence scores
+
+    Note:
+        First request triggers lazy model loading (may take 30-60 seconds).
+        Subsequent requests are fast.
     """
     # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -162,13 +189,10 @@ async def predict(file: UploadFile = File(...)):
             detail=f"File must be an image. Got: {file.content_type}"
         )
 
-    if model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Service not ready."
-        )
-
     try:
+        # Lazy load model on first request
+        current_model = get_model()
+
         # Read and preprocess image
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -178,7 +202,7 @@ async def predict(file: UploadFile = File(...)):
 
         # Run inference
         with torch.no_grad():
-            outputs = model(input_tensor)
+            outputs = current_model(input_tensor)
             probabilities = torch.softmax(outputs, dim=1)[0]
 
         # Get prediction

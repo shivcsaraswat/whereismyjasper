@@ -248,8 +248,8 @@ jasper-serve                  # Start local server on port 8080
 2. ~~Create GitHub Actions workflow (CI - tests)~~ ✓
 3. ~~Add Docker build step~~ ✓
 4. ~~Set up GCP Artifact Registry~~ ✓
-5. ~~Add push to registry step~~ ✓ (pending first successful run)
-6. Set up Cloud Run deployment ← **NEXT**
+5. ~~Add push to registry step~~ ✓
+6. Set up Cloud Run deployment ← **IN PROGRESS** (first attempt failed - container timeout, Dockerfile fixed)
 7. Test full pipeline
 
 ## CI/CD Pipeline Architecture
@@ -344,3 +344,4 @@ jobs:
 - **January 2025**: Changed approach - Claude builds app, user implements CI/CD
 - User has Google Cloud account ready for deployment
 - **January 2025 (Session 2)**: Implemented CI workflow with Docker build and GAR push
+- **January 2025 (Session 3)**: First Cloud Run deployment attempted - failed due to container startup timeout (ResNet50 weights downloading at runtime). Fixed Dockerfile to pre-download weights during build. Deployment still pending.
