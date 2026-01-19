@@ -25,22 +25,28 @@ Three separate microservices:
 ### Completed
 - [x] Project directory structure created
 - [x] ml-service `pyproject.toml` with entry points (`jasper-train`, `jasper-serve`)
-- [x] ml-service `requirements.txt` with `-e .` for editable install
+- [x] ml-service `requirements.txt` with `-e .[dev]` for editable install with dev deps
 - [x] `ml_service` Python package structure created
 - [x] `ml_service/models/classifier.py` - Model creation, save/load, device detection
 - [x] `ml_service/training/train.py` - Full training pipeline with data augmentation
+- [x] `ml_service/api/main.py` - FastAPI app with /health, /predict endpoints
+- [x] `ml-service/Dockerfile` - Multi-stage build, CPU-only PyTorch
+- [x] Git repo initialized and pushed to GitHub (shivcsaraswat/whereismyjasper)
+- [x] GitHub Actions CI workflow created (`.github/workflows/ml-service-ci.yml`)
+- [x] GCP Artifact Registry repository created (`jasper-repo` in `us-central1`)
+- [x] GCP Service Account created for GitHub Actions (`github-actions@whereisjasper`)
+- [x] GitHub Secrets configured (`GCP_PROJECT_ID`, `GCP_SA_KEY`)
+- [x] Docker build step in CI workflow
+- [x] Push to GAR step in CI workflow
 
 ### In Progress
-- [ ] Collect dataset (Jasper images + non-Jasper images)
-- [ ] Test training script locally
+- [ ] Test full CI pipeline (Docker build + push to GAR)
+- [ ] Cloud Run deployment (CD)
 
 ### Pending
+- [ ] Collect dataset (Jasper images + non-Jasper images)
 - [ ] Train model with real data
-- [ ] FastAPI inference endpoint (`ml_service/api/main.py`)
-- [ ] Unit tests for ML service
-- [ ] CI workflow (GitHub Actions)
-- [ ] Dockerize ml-service
-- [ ] CD workflow + GCP Cloud Run deployment
+- [ ] Fix pytest tests (null bytes issue in test files)
 - [ ] Backend service
 - [ ] Frontend service
 
@@ -183,10 +189,10 @@ Once CI/CD is working, dive into:
 ### Hands-On Learning Roadmap (Revised)
 | Phase | Module | Status | Who Builds | Key Learning Goals |
 |-------|--------|--------|------------|-------------------|
-| 1 | ML Service - Complete App | IN PROGRESS | Claude | Working API with placeholder model |
-| 2 | ML Service - CI Pipeline | UP NEXT | User | GitHub Actions, linting, testing |
-| 3 | ML Service - Docker | UP NEXT | User | Dockerfile, multi-stage builds |
-| 4 | ML Service - CD Pipeline | PENDING | User | Cloud Run deployment, secrets |
+| 1 | ML Service - Complete App | DONE | Claude | Working API with placeholder model |
+| 2 | ML Service - CI Pipeline | DONE | User | GitHub Actions, path filtering, uv |
+| 3 | ML Service - Docker + GAR | DONE | User | Dockerfile, multi-stage builds, Artifact Registry |
+| 4 | ML Service - CD Pipeline | IN PROGRESS | User | Cloud Run deployment, secrets |
 | 5 | Backend Service | PENDING | Claude | API gateway code |
 | 6 | Backend CI/CD | PENDING | User | Multi-service workflows |
 | 7 | Frontend Service | PENDING | Claude | Angular app code |
@@ -198,7 +204,7 @@ Once CI/CD is working, dive into:
 - UP NEXT = Ready to start
 - PENDING = Not started
 
-**Current Phase:** 1 COMPLETE - ML Service ready, Phase 2 - User implements CI/CD
+**Current Phase:** 4 - Cloud Run deployment (CD pipeline)
 
 ## ML Service - Ready for CI/CD ✓
 
@@ -237,13 +243,13 @@ pytest                        # Run tests
 jasper-serve                  # Start local server on port 8080
 ```
 
-### Next: User Implements CI/CD
-1. Initialize git repo and push to GitHub
-2. Create GitHub Actions workflow (CI - tests)
-3. Add Docker build step
-4. Set up GCP Artifact Registry
-5. Add push to registry step
-6. Set up Cloud Run deployment
+### CI/CD Implementation Progress
+1. ~~Initialize git repo and push to GitHub~~ ✓
+2. ~~Create GitHub Actions workflow (CI - tests)~~ ✓
+3. ~~Add Docker build step~~ ✓
+4. ~~Set up GCP Artifact Registry~~ ✓
+5. ~~Add push to registry step~~ ✓ (pending first successful run)
+6. Set up Cloud Run deployment ← **NEXT**
 7. Test full pipeline
 
 ## CI/CD Pipeline Architecture
@@ -284,6 +290,51 @@ Push/PR → GitHub Actions → Tests → Docker Build → Artifact Registry → 
 - `GCP_SA_KEY` - Service Account JSON key (for authentication)
 - `GCP_REGION` - Deployment region (e.g., us-central1)
 
+## Current GitHub Actions Workflow
+File: `.github/workflows/ml-service-ci.yml`
+```yaml
+name: CI for ml-service
+on:
+  push:
+    paths:
+      - 'ml-service/**'
+  pull_request:
+    paths:
+      - 'ml-service/**'
+  workflow_dispatch:
+
+env:
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev
+  IMAGE_NAME: jasper-ml-service
+
+jobs:
+  ML_Service_CI:
+    runs-on: ubuntu-latest
+    steps:
+      - Checkout code
+      - Set Up Python 3.11
+      - Install uv + dependencies
+      - Placeholder for pytest
+      - Authenticate to GCP
+      - Setup gcloud
+      - Configure Docker for GAR
+      - Build and push Docker image to GAR
+```
+
+## GCP Configuration
+| Resource | Value |
+|----------|-------|
+| Project ID | `whereisjasper` |
+| Region | `us-central1` |
+| Artifact Registry | `jasper-repo` |
+| Service Account | `github-actions@whereisjasper.iam.gserviceaccount.com` |
+| Full Image Path | `us-central1-docker.pkg.dev/whereisjasper/jasper-repo/jasper-ml-service` |
+
+## GitHub Secrets Configured
+- `GCP_PROJECT_ID` - whereisjasper
+- `GCP_SA_KEY` - Service account JSON key
+
 ## Session Notes
 - User prefers incremental CI/CD approach: build → test → CI/CD → deploy per module
 - User asked excellent questions about ResNet architecture and transfer learning
@@ -292,3 +343,4 @@ Push/PR → GitHub Actions → Tests → Docker Build → Artifact Registry → 
 - User proposed future enhancement: object detection + classification pipeline (Phase 2)
 - **January 2025**: Changed approach - Claude builds app, user implements CI/CD
 - User has Google Cloud account ready for deployment
+- **January 2025 (Session 2)**: Implemented CI workflow with Docker build and GAR push

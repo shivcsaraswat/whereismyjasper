@@ -50,6 +50,7 @@ logs/
 .env
 .env.local
 .env.*.local
+github-actions-key.json
 
 # Docker
 .docker/
@@ -58,3 +59,6 @@ logs/
 node_modules/
 npm-debug.log
 yarn-error.log
+
+
+
